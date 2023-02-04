@@ -3,42 +3,35 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Callable
 
 import functools
-import logging
+import typing
+
+if typing.TYPE_CHECKING:
+    from typing import Callable, ParamSpec, Any
+
+    P = ParamSpec("P")
 
 
 @dataclass
 class Component:
     func: Callable
-    next: Callable | None = None
-    prev: Callable | None = None
+    name: str | None = None
+    description: str | None = None
+    next: Component | None = None
+    prev: Component | None = None
 
-    def __call__(self, *args, **kwargs):
+    def __call__(self, *args, **kwargs) -> Any:
         return self.func(*args, **kwargs)
 
 
-def component(description: str):
-    """
-    Returns a decorator, which in turn returns a transformed function which,
-    when called, returns a Component whose function is the functools.partial of the
-    original function, plus a little logging
-    """
+def component(func: Callable[P, Any]):
+    @functools.wraps(
+        func, assigned=("__module__", "__name__", "__qualname__", "__doc__")
+    )
+    def inner(*args: P.args, **kwargs: P.kwargs) -> Component:
+        partial = functools.partial(func, *args, **kwargs)
 
-    def decorator(func):
-        @functools.wraps(
-            func, assigned=("__module__", "__name__", "__qualname__", "__doc__")
-        )
-        def f(*args, **kwargs) -> Component:
-            partial = functools.partial(func, *args, **kwargs)
+        return Component(partial, func.__name__, func.__doc__)
 
-            def inner(*args, **kwargs):
-                logging.info(description)
-                return partial(*args, **kwargs)
-
-            return Component(inner)
-
-        return f
-
-    return decorator
+    return inner
