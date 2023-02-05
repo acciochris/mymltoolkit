@@ -1,13 +1,12 @@
 [build-system]
-requires = ["hatchling"]
-build-backend = "hatchling.build"
+requires = ["flit_core >=3.8.0,<4"]
+build-backend = "flit_core.buildapi"
 
 [project]
 name = "mymltoolkit"
-description = 'My personal machine learning toolkit'
 readme = "README.md"
 requires-python = ">=3.7"
-license = "MIT"
+license = {file = "LICENSE"}
 keywords = []
 authors = [
   { name = "Chris Liu", email = "acciochris@163.com" },
@@ -24,10 +23,10 @@ classifiers = [
   "Programming Language :: Python :: Implementation :: PyPy",
 ]
 dependencies = []
-dynamic = ["version"]
+dynamic = ["version", "description"]
 
 [project.urls]
 Source = "https://github.com/acciochris/mymltoolkit"
 
-[tool.hatch.version]
-path = "src/mymltoolkit/__about__.py"
+[project.optional-dependencies]
+test = ["pytest"]
