@@ -25,6 +25,7 @@ classifiers = [
 dependencies = [
   "typing-extensions",
   "scikit-learn",
+  "loguru",
 ]
 dynamic = ["version", "description"]
 

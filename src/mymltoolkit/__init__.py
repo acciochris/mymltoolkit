@@ -2,12 +2,13 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+import functools
+from dataclasses import dataclass
 from typing import Callable, Any
 from typing_extensions import ParamSpec
-from collections.abc import Iterator
+from collections.abc import Iterator, Iterable
 
-import functools
+from loguru import logger
 
 
 __version__ = "0.1.0"
@@ -24,10 +25,14 @@ class Component:
     next: Component | None = None
     prev: Component | None = None
 
-    def __call__(self, *args: Any, **kwargs: Any) -> Any:
+    def __call__(self, *args: Any, **kwargs) -> Any:
         return self.func(*args, **kwargs)
 
     def __str__(self) -> str:
+        if not self.name:
+            return ""
+        if not self.description:
+            return self.name
         return f"{self.name}: {self.description}"
 
     def __or__(self, other: Component) -> ComponentList:
@@ -83,14 +88,14 @@ class ComponentList:
     def __iter__(self) -> Iterator[Component]:
         yield self.first
         current = self.first
-        while current.next is not None:
+        while current.next:
             yield current.next
             current = current.next
 
     def reverse_iter(self) -> Iterator[Component]:
         yield self.last
         current = self.last
-        while current.prev is not None:
+        while current.prev:
             yield current.prev
             current = current.prev
 
@@ -109,7 +114,43 @@ class Task:
     components: ComponentList
     name: str | None = None
     description: str | None = None
-    _indent: int = field(default=0, init=False)
 
-    def run(*args: Any, **kwargs: Any) -> Any:
-        pass
+    def __call__(
+        self, *args: Any, indent: int = 2, _level: int = 0
+    ) -> Any:  # _level is the indentation level
+        for component in self.components:
+            logger.info(
+                "{indent}Running {component}",
+                component=component,
+                indent=" " * _level * indent,
+            )
+
+            # Ensure args is an iterable suitable for unpacking
+            if not isinstance(args, Iterable):
+                args = (args,)
+
+            if isinstance(component.func, Task):
+                args = component(*args, indent=indent, _level=_level + 1)
+            else:
+                args = component(*args)
+            # print(component, args)
+
+        return args
+
+    def as_component(self) -> Component:
+        return Component(
+            self, f"subtask {self.name}" if self.name else "subtask", self.description
+        )
+
+    def __or__(self, other: Component | ComponentList) -> ComponentList:
+        return self.as_component() | other
+
+    def __ror__(self, other: Component | ComponentList) -> ComponentList:
+        return other | self.as_component()
+
+    def __str__(self) -> str:
+        if not self.name:
+            return "task"
+        if not self.description:
+            return f"task {self.name}"
+        return f"task {self.name}: {self.description}"
