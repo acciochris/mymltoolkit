@@ -6,7 +6,7 @@ build-backend = "flit_core.buildapi"
 name = "mymltoolkit"
 readme = "README.md"
 requires-python = ">=3.7"
-license = {file = "LICENSE"}
+license = { file = "LICENSE" }
 keywords = []
 authors = [
   { name = "Chris Liu", email = "acciochris@163.com" },
@@ -22,7 +22,10 @@ classifiers = [
   "Programming Language :: Python :: Implementation :: CPython",
   "Programming Language :: Python :: Implementation :: PyPy",
 ]
-dependencies = []
+dependencies = [
+  "typing-extensions",
+  "scikit-learn",
+]
 dynamic = ["version", "description"]
 
 [project.urls]

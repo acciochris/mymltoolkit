@@ -2,17 +2,23 @@ from mymltoolkit import component, Component
 
 
 @component
-def foo(a, b, *, c=3):
+def foo(a=None, b=None, *, c=3):
+    if not (a and b):
+        return
     return a + b + c
 
 
 @component
-def bar(a):
+def bar(a=None):
+    if not a:
+        return
     return a / 2, 42
 
 
 @component
-def baz(a, b):
+def baz(a=None, b=None):
+    if not (a and b):
+        return
     return a + b
 
 

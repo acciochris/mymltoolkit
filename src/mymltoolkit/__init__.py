@@ -2,16 +2,18 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
+from typing import Callable, Any
+from typing_extensions import ParamSpec
+from collections.abc import Iterator
 
 import functools
-import typing
 
-if typing.TYPE_CHECKING:
-    from typing import Callable, Any
 
 __version__ = "0.1.0"
 __all__ = ("component", "Component", "ComponentList", "Task")
+
+P = ParamSpec("P")
 
 
 @dataclass
@@ -22,7 +24,7 @@ class Component:
     next: Component | None = None
     prev: Component | None = None
 
-    def __call__(self, *args, **kwargs) -> Any:
+    def __call__(self, *args: Any, **kwargs: Any) -> Any:
         return self.func(*args, **kwargs)
 
     def __str__(self) -> str:
@@ -34,12 +36,12 @@ class Component:
         return NotImplemented
 
 
-def component(func: Callable):
+def component(func: Callable[P, Any]) -> Callable[P, Component]:
     @functools.wraps(
         func, assigned=("__module__", "__name__", "__qualname__", "__doc__")
-    )
-    def inner(**kwargs) -> Component:
-        partial = functools.partial(func, **kwargs)
+    )  # HACK: All components need to declare their positional arguments as optional
+    def inner(*args: P.args, **kwargs: P.kwargs) -> Component:
+        partial = functools.partial(func, *args, **kwargs)
 
         return Component(partial, func.__name__, func.__doc__)
 
@@ -78,25 +80,28 @@ class ComponentList:
             return self.add_before(other)
         return NotImplemented
 
-    def __iter__(self):
+    def __iter__(self) -> Iterator[Component]:
         yield self.first
         current = self.first
         while current.next is not None:
             yield current.next
             current = current.next
 
-    def reverse_iter(self):
+    def reverse_iter(self) -> Iterator[Component]:
         yield self.last
         current = self.last
         while current.prev is not None:
             yield current.prev
             current = current.prev
 
-    def __len__(self):
+    def __len__(self) -> int:
         return len(list(iter(self)))
 
-    def __str__(self):
+    def __str__(self) -> str:
         return " -> ".join([component.name or "(unnamed)" for component in self])
+
+    def to_task(self, name: str | None = None, description: str | None = None) -> Task:
+        return Task(self, name, description)
 
 
 @dataclass
@@ -104,3 +109,7 @@ class Task:
     components: ComponentList
     name: str | None = None
     description: str | None = None
+    _indent: int = field(default=0, init=False)
+
+    def run(*args: Any, **kwargs: Any) -> Any:
+        pass
