@@ -1,4 +1,12 @@
-from mymltoolkit import component, Component, Task
+from mymltoolkit import component, class_component, Component, Task
+
+from loguru import logger
+import sys
+
+
+# Do not clutter the log with unnecessary information
+logger.remove()
+logger.add(sys.stderr, format="{message}")
 
 
 @component
@@ -23,6 +31,30 @@ def baz(a=None, b=None):
     if not (a and b):
         return
     return a + b
+
+
+@class_component
+class add:
+    def __init__(self, a=2):
+        self.a = a
+
+    def __call__(self, b):
+        return self.a + b
+
+    def inverse(self, c):
+        return c - self.a
+
+
+@class_component
+class subtract:
+    def __init__(self, a=2):
+        self.a = a
+
+    def __call__(self, b):
+        return b - self.a
+
+    def inverse(self, c):
+        return c + self.a
 
 
 def test_component():
@@ -53,3 +85,24 @@ def test_subtask():
 
     assert supertask() == 66
     assert supersupertask(indent=4) == (33, 42)
+
+
+def test_inverse_component():
+    assert isinstance(add(a=3), Component)
+    assert add(a=3)(2) == 5
+    assert add(a=3).inverse(5) == 2
+
+    add2 = add(a=5)
+
+    assert add2(2) == 7
+    assert add2.inverse(7) == 2
+
+    add_2_subtract_5 = (add(2) | subtract(5)).to_task("add_2_subtract_5")
+
+    assert add_2_subtract_5(5) == 2
+    assert add_2_subtract_5.inverse(5) == 8
+
+    identity = (add(3) | add_2_subtract_5).to_task("identity")
+
+    assert identity(159) == 159
+    assert identity.inverse(-50) == -50

@@ -5,7 +5,7 @@ from __future__ import annotations
 import functools
 from dataclasses import dataclass
 from typing import Callable, Any
-from typing_extensions import ParamSpec
+from typing_extensions import ParamSpec, Protocol
 from collections.abc import Iterator, Iterable
 
 from loguru import logger
@@ -17,16 +17,29 @@ __all__ = ("component", "Component", "ComponentList", "Task")
 P = ParamSpec("P")
 
 
+class ClassComponent(Protocol[P]):
+    def __init__(self, *args: P.args, **kwargs: P.kwargs):
+        ...
+
+
+def _identity(*args: Any, **kwargs: Any) -> Any:
+    return args
+
+
 @dataclass
 class Component:
     func: Callable
+    inverse_func: Callable = _identity
     name: str | None = None
     description: str | None = None
     next: Component | None = None
     prev: Component | None = None
 
-    def __call__(self, *args: Any, **kwargs) -> Any:
+    def __call__(self, *args: Any, **kwargs: Any) -> Any:
         return self.func(*args, **kwargs)
+
+    def inverse(self, *args: Any, **kwargs: Any) -> Any:
+        return self.inverse_func(*args, **kwargs)
 
     def __str__(self) -> str:
         if not self.name:
@@ -42,13 +55,37 @@ class Component:
 
 
 def component(func: Callable[P, Any]) -> Callable[P, Component]:
+    """Generate a component from `func` (there is no way to specify `inverse_func`)"""
+
     @functools.wraps(
         func, assigned=("__module__", "__name__", "__qualname__", "__doc__")
     )  # HACK: All components need to declare their positional arguments as optional
     def inner(*args: P.args, **kwargs: P.kwargs) -> Component:
         partial = functools.partial(func, *args, **kwargs)
 
-        return Component(partial, func.__name__, func.__doc__)
+        return Component(partial, name=func.__name__, description=func.__doc__)
+
+    return inner
+
+
+def class_component(cls: type[ClassComponent[P]]) -> Callable[P, Component]:
+    """Generate a component from `cls`"""
+
+    if not hasattr(cls, "__call__"):
+        raise TypeError("`cls` must have __call__ defined")
+
+    @functools.wraps(
+        cls, assigned=("__module__", "__name__", "__qualname__", "__doc__")
+    )
+    def inner(*args: P.args, **kwargs: P.kwargs) -> Component:
+        instance = cls(*args, **kwargs)
+
+        return Component(
+            instance.__call__,  # type: ignore
+            getattr(instance, "inverse", _identity),
+            name=cls.__name__.lower(),  # convert the class name to lowercase
+            description=cls.__doc__,
+        )
 
     return inner
 
@@ -137,9 +174,32 @@ class Task:
 
         return args
 
+    def inverse(self, *args: Any, indent: int = 2, _level: int = 0) -> Any:
+        for component in self.components.reverse_iter():
+            logger.info(
+                "{indent}Inversely running {component}",
+                component=component,
+                indent=" " * _level * indent,
+            )
+
+            # Ensure args is an iterable suitable for unpacking
+            if not isinstance(args, Iterable):
+                args = (args,)
+
+            # component.func is a task if the component is generated from a task
+            if isinstance(component.func, Task):
+                args = component.inverse(*args, indent=indent, _level=_level + 1)
+            else:
+                args = component.inverse(*args)
+
+        return args
+
     def as_component(self) -> Component:
         return Component(
-            self, f"subtask {self.name}" if self.name else "subtask", self.description
+            self,
+            self.inverse,
+            name=f"subtask {self.name}" if self.name else "subtask",
+            description=self.description,
         )
 
     def __or__(self, other: Component | ComponentList) -> ComponentList:
