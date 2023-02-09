@@ -1,4 +1,5 @@
-from mymltoolkit import component, class_component, Component, Task, MultiComponent
+from mymltoolkit.component import component, class_component, Component, Task
+from mymltoolkit import multi
 
 from loguru import logger
 import sys
@@ -8,11 +9,11 @@ import pytest
 
 # Do not clutter the log with unnecessary information
 logger.remove()
-logger.add(sys.stderr, format="{message}")
+logger.add(sys.stdout, format="{message}")
 
 
 @component
-def foo(a=None, b=None, *, c=3):
+def foo(a=None, b=None, *, c=3, **extra):
     """Add a, b and c"""
     if not (a and b):
         return
@@ -20,7 +21,7 @@ def foo(a=None, b=None, *, c=3):
 
 
 @component
-def bar(a=None):
+def bar(a=None, **extra):
     """Divide a by 2, 42"""
     if not a:
         return
@@ -28,7 +29,7 @@ def bar(a=None):
 
 
 @component
-def baz(a=None, b=None):
+def baz(a=None, b=None, **extra):
     """Add a and b"""
     if not (a and b):
         return
@@ -40,10 +41,10 @@ class add:
     def __init__(self, a=2):
         self.a = a
 
-    def __call__(self, b):
+    def __call__(self, b, **extra):
         return self.a + b
 
-    def inverse(self, c):
+    def inverse(self, c, **extra):
         return c - self.a
 
 
@@ -52,16 +53,16 @@ class subtract:
     def __init__(self, a=2):
         self.a = a
 
-    def __call__(self, b):
+    def __call__(self, b, **extra):
         return b - self.a
 
-    def inverse(self, c):
+    def inverse(self, c, **extra):
         return c + self.a
 
 
 def test_component():
     assert isinstance(foo(), Component)
-    assert foo(c=1)(1, 2) == 4
+    assert foo(c=1).func(1, 2) == 4
 
 
 def test_component_list():
@@ -91,13 +92,13 @@ def test_subtask():
 
 def test_inverse_component():
     assert isinstance(add(a=3), Component)
-    assert add(a=3)(2) == 5
-    assert add(a=3).inverse(5) == 2
+    assert add(a=3).func(2) == 5
+    assert add(a=3).inverse_func(5) == 2
 
     add2 = add(a=5)
 
-    assert add2(2) == 7
-    assert add2.inverse(7) == 2
+    assert add2.func(2) == 7
+    assert add2.inverse_func(7) == 2
 
     add_2_subtract_5 = (add(2) | subtract(5)).to_task("add_2_subtract_5")
 
@@ -111,35 +112,32 @@ def test_inverse_component():
 
 
 def test_multicomponent():
-    multi = MultiComponent(add(3), subtract(6))
+    multi1 = multi(add(3), subtract(6)).to_task()
 
-    assert multi(5, 7) == (8, 1)
+    assert multi1(5, 7) == (8, 1)
     with pytest.raises(ValueError):
-        multi(5, 6, 7)
+        multi1(5, 6, 7)
 
-    multi2 = multi | baz()
-    multi3 = bar() | multi
-    multi4 = multi3.to_task("multi3") | MultiComponent(subtract(5), add(2))
-    identity = multi | MultiComponent(subtract(3), add(6))
+    multi2 = multi1 | baz()
+    multi3 = bar() | multi1
+    multi4 = multi3.to_task("multi3") | multi(subtract(5), add(2))
+    identity = multi1 | multi(subtract(3), add(6))
 
     assert multi2.to_task()(5, 7) == 9
     assert multi3.to_task()(6) == (6, 36)
     assert multi4.to_task()(6) == (1, 38)
     assert identity.to_task()(5, 5) == (5, 5)
 
-    identity2 = MultiComponent(
+    identity2 = multi(
         add(3) | subtract(3),
         (add(4) | subtract(4)).to_task("identity", "Do nothing"),
-        name="identity",
-        description="Do nothing",
     )
 
-    assert identity2(5, 5) == (5, 5)
-    assert identity2.name == "identity"
+    assert identity2.func(5, 5) == (5, 5)
 
-    identity3 = MultiComponent(None, None)
+    identity3 = multi(None, None)
 
-    assert identity3(5, 5) == (5, 5)
+    assert identity3.func(5, 5) == (5, 5)
 
     assert multi2.to_task().inverse(8, 1) == (5, 7)
-    assert identity2.inverse(5, 5) == (5, 5)
+    assert identity2.inverse_func(5, 5) == (5, 5)
