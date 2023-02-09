@@ -23,7 +23,7 @@ class ClassComponent(Protocol[P]):
 
 
 def _identity(*args: Any, **kwargs: Any) -> Any:
-    return args
+    return args if len(args) > 1 else args[0]
 
 
 @dataclass
