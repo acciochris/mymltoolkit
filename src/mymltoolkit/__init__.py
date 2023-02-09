@@ -5,7 +5,7 @@ from __future__ import annotations
 import functools
 from dataclasses import dataclass
 from typing import Callable, Any
-from typing_extensions import ParamSpec, Protocol
+from typing_extensions import ParamSpec, Protocol, TypeAlias
 from collections.abc import Iterator, Iterable
 
 from loguru import logger
@@ -15,6 +15,7 @@ __version__ = "0.1.0"
 __all__ = ("component", "Component", "ComponentList", "Task")
 
 P = ParamSpec("P")
+ComponentLike: TypeAlias = "Component | ComponentList | Task | MultiComponent"
 
 
 class ClassComponent(Protocol[P]):
@@ -166,7 +167,7 @@ class Task:
             if not isinstance(args, Iterable):
                 args = (args,)
 
-            if isinstance(component.func, Task):
+            if isinstance(component.func, (Task, MultiComponent)):
                 args = component(*args, indent=indent, _level=_level + 1)
             else:
                 args = component(*args)
@@ -187,7 +188,7 @@ class Task:
                 args = (args,)
 
             # component.func is a task if the component is generated from a task
-            if isinstance(component.func, Task):
+            if isinstance(component.func, (Task, MultiComponent)):
                 args = component.inverse(*args, indent=indent, _level=_level + 1)
             else:
                 args = component.inverse(*args)
@@ -202,10 +203,10 @@ class Task:
             description=self.description,
         )
 
-    def __or__(self, other: Component | ComponentList) -> ComponentList:
+    def __or__(self, other: ComponentLike) -> ComponentList:
         return self.as_component() | other
 
-    def __ror__(self, other: Component | ComponentList) -> ComponentList:
+    def __ror__(self, other: ComponentLike) -> ComponentList:
         return other | self.as_component()
 
     def __str__(self) -> str:
@@ -214,3 +215,109 @@ class Task:
         if not self.description:
             return f"task {self.name}"
         return f"task {self.name}: {self.description}"
+
+
+@dataclass(init=False)
+class MultiComponent:
+    tasks: tuple[Task]
+    name: str | None = None
+    description: str | None = None
+
+    def __init__(
+        self,
+        *tasks: Component | ComponentList | Task | None,
+        name: str | None = None,
+        description: str | None = None,
+    ):
+        new_tasks: list[Task] = []
+        for task in tasks:
+            if not task:
+                identity = Component(
+                    _identity, name="identity", description="Do nothing"
+                )
+                new_tasks.append(
+                    ComponentList(identity, identity).to_task(
+                        identity.name, identity.description
+                    )
+                )
+                continue
+            if isinstance(task, Component):
+                new_tasks.append(
+                    ComponentList(task, task).to_task(task.name, task.description)
+                )
+                continue
+            if isinstance(task, ComponentList):
+                new_tasks.append(task.to_task())
+                continue
+            if isinstance(task, Task):
+                new_tasks.append(task)
+                continue
+
+            raise TypeError(
+                "tasks must be of type Component | ComponentList | Task | None"
+            )
+
+        self.tasks = tuple(new_tasks)
+        self.name = name
+        self.description = description
+
+    def __call__(
+        self, *args: Any, indent: int = 2, _level: int = 0
+    ) -> Any:  # _level is the indentation level
+        if len(args) != len(self.tasks):
+            raise ValueError(
+                "the length of args must match the length of tasks specified"
+            )
+
+        outputs = []
+        for i, (task, arg) in enumerate(zip(self.tasks, args)):
+            logger.info(
+                "{indent}Running {task} for argument {i}",
+                task=task,
+                indent=" " * _level * indent,
+                i=i,
+            )
+
+            outputs.append(task(arg, indent=indent, _level=_level + 1))
+
+        return tuple(outputs)
+
+    def inverse(self, *args: Any, indent: int = 2, _level: int = 0) -> Any:
+        if len(args) != len(self.tasks):
+            raise ValueError(
+                "the length of args must match the length of tasks specified"
+            )
+
+        outputs = []
+        for i, (task, arg) in enumerate(zip(self.tasks, args)):
+            logger.info(
+                "{indent}Inversely running {task} for argument {i}",
+                task=task,
+                indent=" " * _level * indent,
+                i=i,
+            )
+
+            outputs.append(task.inverse(arg, indent=indent, _level=_level + 1))
+
+        return tuple(outputs)
+
+    def __or__(self, other: ComponentLike) -> ComponentList:
+        return self.as_component() | other
+
+    def __ror__(self, other: ComponentLike) -> ComponentList:
+        return other | self.as_component()
+
+    def __str__(self) -> str:
+        if not self.name:
+            return "multicomponent"
+        if not self.description:
+            return f"multicomponent {self.name}"
+        return f"multicomponent {self.name}: {self.description}"
+
+    def as_component(self) -> Component:
+        return Component(
+            self,
+            self.inverse,
+            name=f"multicomponent {self.name}" if self.name else "multicomponent",
+            description=self.description,
+        )

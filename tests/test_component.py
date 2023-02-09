@@ -1,7 +1,9 @@
-from mymltoolkit import component, class_component, Component, Task
+from mymltoolkit import component, class_component, Component, Task, MultiComponent
 
 from loguru import logger
 import sys
+
+import pytest
 
 
 # Do not clutter the log with unnecessary information
@@ -22,7 +24,7 @@ def bar(a=None):
     """Divide a by 2, 42"""
     if not a:
         return
-    return a / 2, 42
+    return a // 2, 42
 
 
 @component
@@ -106,3 +108,38 @@ def test_inverse_component():
 
     assert identity(159) == 159
     assert identity.inverse(-50) == -50
+
+
+def test_multicomponent():
+    multi = MultiComponent(add(3), subtract(6))
+
+    assert multi(5, 7) == (8, 1)
+    with pytest.raises(ValueError):
+        multi(5, 6, 7)
+
+    multi2 = multi | baz()
+    multi3 = bar() | multi
+    multi4 = multi3.to_task("multi3") | MultiComponent(subtract(5), add(2))
+    identity = multi | MultiComponent(subtract(3), add(6))
+
+    assert multi2.to_task()(5, 7) == 9
+    assert multi3.to_task()(6) == (6, 36)
+    assert multi4.to_task()(6) == (1, 38)
+    assert identity.to_task()(5, 5) == (5, 5)
+
+    identity2 = MultiComponent(
+        add(3) | subtract(3),
+        (add(4) | subtract(4)).to_task("identity", "Do nothing"),
+        name="identity",
+        description="Do nothing",
+    )
+
+    assert identity2(5, 5) == (5, 5)
+    assert identity2.name == "identity"
+
+    identity3 = MultiComponent(None, None)
+
+    assert identity3(5, 5) == (5, 5)
+
+    assert multi2.to_task().inverse(8, 1) == (5, 7)
+    assert identity2.inverse(5, 5) == (5, 5)
