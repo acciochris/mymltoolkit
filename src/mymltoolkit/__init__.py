@@ -83,7 +83,7 @@ def class_component(cls: type[ClassComponent[P]]) -> Callable[P, Component]:
         return Component(
             instance.__call__,  # type: ignore
             getattr(instance, "inverse", _identity),
-            name=cls.__name__.lower(),  # convert the class name to lowercase
+            name=cls.__name__,
             description=cls.__doc__,
         )
 
