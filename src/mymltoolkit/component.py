@@ -3,7 +3,7 @@ from __future__ import annotations
 import functools
 from dataclasses import dataclass
 from typing import Callable, Any
-from typing_extensions import ParamSpec, Protocol, TypeAlias
+from typing_extensions import ParamSpec, Protocol
 from collections.abc import Iterator, Iterable
 
 from loguru import logger
@@ -12,7 +12,6 @@ from loguru import logger
 __all__ = ("component", "Component", "ComponentList", "Task")
 
 P = ParamSpec("P")
-ComponentLike: TypeAlias = "Component | ComponentList | Task"
 
 
 class ClassComponent(Protocol[P]):
@@ -189,10 +188,10 @@ class Task:
             description=self.description,
         )
 
-    def __or__(self, other: ComponentLike) -> ComponentList:
+    def __or__(self, other: Component | ComponentList | Task) -> ComponentList:
         return self.as_component() | other
 
-    def __ror__(self, other: ComponentLike) -> ComponentList:
+    def __ror__(self, other: Component | ComponentList | Task) -> ComponentList:
         return other | self.as_component()
 
     def __str__(self) -> str:

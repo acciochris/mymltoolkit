@@ -5,12 +5,9 @@ from __future__ import annotations
 from typing import Any
 
 from mymltoolkit.component import (
-    Component,
-    ComponentList,
     Task,
     class_component,
     _identity,
-    ComponentLike,
 )
 
 from loguru import logger
@@ -24,37 +21,9 @@ class multi:
 
     def __init__(
         self,
-        *tasks: ComponentLike | None,
+        *tasks: Task | None,
     ):
-        new_tasks: list[Task] = []
-        for task in tasks:
-            if not task:
-                identity = Component(
-                    _identity, name="identity", description="Do nothing"
-                )
-                new_tasks.append(
-                    ComponentList(identity, identity).to_task(
-                        identity.name, identity.description
-                    )
-                )
-                continue
-            if isinstance(task, Component):
-                new_tasks.append(
-                    ComponentList(task, task).to_task(task.name, task.description)
-                )
-                continue
-            if isinstance(task, ComponentList):
-                new_tasks.append(task.to_task())
-                continue
-            if isinstance(task, Task):
-                new_tasks.append(task)
-                continue
-
-            raise TypeError(
-                "tasks must be of type Component | ComponentList | Task | None"
-            )
-
-        self.tasks = tuple(new_tasks)
+        self.tasks = [task or _identity for task in tasks]
 
     def __call__(
         self, *args: Any, indent: int = 2, _level: int = 0
