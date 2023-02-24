@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from typing import Any
+import sys
 
 from mymltoolkit.component import (
     Task,
@@ -13,6 +14,21 @@ from mymltoolkit.component import (
 from loguru import logger
 
 __version__ = "0.1.0"
+
+
+def setup_logging(format: str = "{time:HH:mm:ss} | {message}"):
+    """Enable logging for mymltoolkit"""
+    logger.enable("mymltoolkit")
+    logger.remove()
+    logger.add(
+        sys.stderr,
+        format=format,
+    )
+
+
+##############
+# Components #
+##############
 
 
 @class_component
