@@ -8,18 +8,46 @@ import sys
 from mymltoolkit.component import (
     Task,
     class_component,
+    component,
     _identity,
 )
 
 from loguru import logger
 
+# Plotting
+import seaborn.relational as _rel
+import seaborn.distributions as _dis
+import seaborn.categorical as _cat
+import seaborn.axisgrid as _grid
+
+
 __version__ = "0.1.0"
+__all__ = [
+    "setup_logging",
+    # Plotting
+    "relplot",
+    "scatterplot",
+    "lineplot",
+    "displot",
+    "histplot",
+    "kdeplot",
+    "ecdfplot",
+    "rugplot",
+    "catplot",
+    "stripplot",
+    "swarmplot",
+    "boxplot",
+    "violinplot",
+    "pointplot",
+    "barplot",
+]
 
 
-def setup_logging(format: str = "{time:HH:mm:ss} | {message}"):
+def setup_logging(format: str = "{time:HH:mm:ss} | {message}", remove: bool = True):
     """Enable logging for mymltoolkit"""
     logger.enable("mymltoolkit")
-    logger.remove()
+    if remove:
+        logger.remove()
     logger.add(
         sys.stderr,
         format=format,
@@ -29,6 +57,32 @@ def setup_logging(format: str = "{time:HH:mm:ss} | {message}"):
 ##############
 # Components #
 ##############
+
+###########################
+# Plotting (with seaborn) #
+###########################
+
+relplot = component(_rel.relplot)
+scatterplot = component(_rel.scatterplot)
+lineplot = component(_rel.lineplot)
+displot = component(_dis.displot)
+histplot = component(_dis.histplot)
+kdeplot = component(_dis.kdeplot)
+ecdfplot = component(_dis.ecdfplot)
+rugplot = component(_dis.rugplot)
+catplot = component(_cat.catplot)
+stripplot = component(_cat.stripplot)
+swarmplot = component(_cat.swarmplot)
+boxplot = component(_cat.boxplot)
+violinplot = component(_cat.violinplot)
+pointplot = component(_cat.pointplot)
+barplot = component(_cat.barplot)
+jointplot = component(_grid.jointplot)
+pairplot = component(_grid.pairplot)
+
+########
+# Meta #
+########
 
 
 @class_component
