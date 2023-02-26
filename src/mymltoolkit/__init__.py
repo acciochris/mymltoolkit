@@ -18,6 +18,8 @@ import seaborn.relational as _rel
 import seaborn.distributions as _dis
 import seaborn.categorical as _cat
 import seaborn.axisgrid as _grid
+import seaborn.matrix as _mat
+import seaborn.regression as _reg
 
 
 __version__ = "0.1.0"
@@ -78,6 +80,11 @@ pointplot = component(_cat.pointplot)
 barplot = component(_cat.barplot)
 jointplot = component(_grid.jointplot)
 pairplot = component(_grid.pairplot)
+heatmap = component(_mat.heatmap)
+clustermap = component(_mat.clustermap)
+lmplot = component(_reg.lmplot)
+regplot = component(_reg.regplot)
+residplot = component(_reg.regplot)
 
 ########
 # Meta #
