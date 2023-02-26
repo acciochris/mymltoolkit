@@ -19,6 +19,11 @@ class ClassComponent(Protocol[P]):
         ...
 
 
+class SupportsTask(Protocol):
+    def to_task(self, name: str | None = None, description: str | None = None) -> Task:
+        ...
+
+
 def _identity(*args: Any, **kwargs: Any) -> Any:
     return args if len(args) > 1 else args[0]
 
@@ -44,8 +49,8 @@ class Component:
             return ComponentList(self, self) | other
         return NotImplemented
 
-    def to_task(self) -> Task:
-        return ComponentList(self, self).to_task()
+    def to_task(self, name: str | None = None, description: str | None = None) -> Task:
+        return ComponentList(self, self).to_task(name, description)
 
 
 def component(func: Callable[P, Any]) -> Callable[P, Component]:
@@ -187,6 +192,9 @@ class Task:
             name=f"subtask {self.name}" if self.name else "subtask",
             description=self.description,
         )
+
+    def to_task(self, name: str | None = None, description: str | None = None) -> Task:
+        return Task(self.components, name or self.name, description or self.description)
 
     def __or__(self, other: Component | ComponentList | Task) -> ComponentList:
         return self.as_component() | other

@@ -6,10 +6,9 @@ from typing import Any
 import sys
 
 from mymltoolkit.component import (
-    Task,
     class_component,
     component,
-    _identity,
+    SupportsTask,
 )
 
 from loguru import logger
@@ -91,9 +90,9 @@ class multi:
 
     def __init__(
         self,
-        *tasks: Task | None,
+        *tasks: SupportsTask | None,
     ):
-        self.tasks = [task or _identity for task in tasks]
+        self.tasks = [task.to_task() if task else None for task in tasks]
 
     def __call__(
         self, *args: Any, indent: int = 2, _level: int = 0
@@ -105,6 +104,10 @@ class multi:
 
         outputs = []
         for i, (task, arg) in enumerate(zip(self.tasks, args)):
+            if not task:
+                outputs.append(arg)  # Do nothing
+                continue
+
             logger.info(
                 "{indent}Running {task} for argument {i}",
                 task=task,
@@ -124,6 +127,10 @@ class multi:
 
         outputs = []
         for i, (task, arg) in enumerate(zip(self.tasks, args)):
+            if not task:
+                outputs.append(arg)  # Do nothing
+                continue
+
             logger.info(
                 "{indent}Inversely running {task} for argument {i}",
                 task=task,

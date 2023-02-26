@@ -112,7 +112,7 @@ def test_inverse_component():
 
 
 def test_multicomponent():
-    multi1 = multi(add(3).to_task(), subtract(6).to_task()).to_task()
+    multi1 = multi(add(3), subtract(6)).to_task()
 
     assert multi1(5, 7) == (8, 1)
     with pytest.raises(ValueError):
@@ -120,8 +120,8 @@ def test_multicomponent():
 
     multi2 = multi1 | baz()
     multi3 = bar() | multi1
-    multi4 = multi3.to_task("multi3") | multi(subtract(5).to_task(), add(2).to_task())
-    identity = multi1 | multi(subtract(3).to_task(), add(6).to_task())
+    multi4 = multi3.to_task("multi3") | multi(subtract(5), add(2))
+    identity = multi1 | multi(subtract(3), add(6))
 
     assert multi2.to_task()(5, 7) == 9
     assert multi3.to_task()(6) == (6, 36)
@@ -129,7 +129,7 @@ def test_multicomponent():
     assert identity.to_task()(5, 5) == (5, 5)
 
     identity2 = multi(
-        (add(3) | subtract(3)).to_task(),
+        add(3) | subtract(3),
         (add(4) | subtract(4)).to_task("identity", "Do nothing"),
     )
 
