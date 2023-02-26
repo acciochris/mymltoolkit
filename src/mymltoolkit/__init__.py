@@ -86,7 +86,7 @@ pairplot = component(_grid.pairplot)
 
 @class_component
 class multi:
-    """Execute a task for each argument"""
+    """Perform a transformation for each argument"""
 
     def __init__(
         self,
@@ -139,5 +139,29 @@ class multi:
             )
 
             outputs.append(task.inverse(arg, indent=indent, _level=_level + 1))
+
+        return tuple(outputs)
+
+
+@class_component
+class agg:
+    """Aggregate multiple transformations over the same input"""
+
+    def __init__(self, *tasks: SupportsTask):
+        self.tasks = [task.to_task() for task in tasks]
+
+    def __call__(
+        self, *args: Any, indent: int = 2, _level: int = 0
+    ) -> Any:  # _level is the indentation level
+        outputs = []
+        for i, task in enumerate(self.tasks):
+            logger.info(
+                "{indent}Running {task} {i}",
+                task=task,
+                indent=" " * _level * indent,
+                i=i,
+            )
+
+            outputs.append(task(*args, indent=indent, _level=_level + 1))
 
         return tuple(outputs)

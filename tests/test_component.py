@@ -1,5 +1,5 @@
 from mymltoolkit.component import component, class_component, Component, Task
-from mymltoolkit import multi
+from mymltoolkit import multi, agg
 
 from loguru import logger
 import sys
@@ -34,6 +34,27 @@ def baz(a=None, b=None, **extra):
     if not (a and b):
         return
     return a + b
+
+
+@component
+def two_and_three(**extra):
+    return 2, 3
+
+
+@component
+def product(a=None, b=None, **extra):
+    if not (a and b):
+        return 1
+
+    return a * b
+
+
+@component
+def quotient(a=None, b=None, **extra):
+    if not (a and b):
+        return 1
+
+    return a / b
 
 
 @class_component
@@ -141,3 +162,9 @@ def test_multicomponent():
 
     assert multi2.to_task().inverse(8, 1) == (5, 7)
     assert identity2.inverse_func(5, 5) == (5, 5)
+
+
+def test_aggregate():
+    task = (two_and_three() | agg(product(), quotient())).to_task()
+
+    assert task() == (6, 2 / 3)
