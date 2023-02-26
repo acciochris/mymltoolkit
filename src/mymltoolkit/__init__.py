@@ -165,3 +165,27 @@ class agg:
             outputs.append(task(*args, indent=indent, _level=_level + 1))
 
         return tuple(outputs)
+
+
+@class_component
+class each:
+    """Apply a transformation on each of the arguments"""
+
+    def __init__(self, task: SupportsTask) -> None:
+        self.task = task.to_task()
+
+    def __call__(
+        self, *args: Any, indent: int = 2, _level: int = 0
+    ) -> Any:  # _level is the indentation level
+        outputs = []
+        for i, arg in enumerate(args):
+            logger.info(
+                "{indent}Running {task} for argument {i}",
+                task=self.task,
+                indent=" " * _level * indent,
+                i=i,
+            )
+
+            outputs.append(self.task(arg, indent=indent, _level=_level + 1))
+
+        return tuple(outputs)

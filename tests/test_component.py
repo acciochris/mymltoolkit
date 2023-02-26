@@ -1,5 +1,5 @@
 from mymltoolkit.component import component, class_component, Component, Task
-from mymltoolkit import multi, agg
+from mymltoolkit import multi, agg, each
 
 from loguru import logger
 import sys
@@ -168,3 +168,9 @@ def test_aggregate():
     task = (two_and_three() | agg(product(), quotient())).to_task()
 
     assert task() == (6, 2 / 3)
+
+
+def test_each():
+    task = (two_and_three() | each(add())).to_task()
+
+    assert task() == (4, 5)
