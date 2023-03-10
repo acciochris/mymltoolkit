@@ -9,6 +9,7 @@ from mymltoolkit.component import (
     class_component,
     component,
     SupportsTask,
+    _log,
 )
 
 from loguru import logger
@@ -44,14 +45,31 @@ __all__ = [
 ]
 
 
-def setup_logging(format: str = "{time:HH:mm:ss} | {message}", remove: bool = True):
-    """Enable logging for mymltoolkit"""
+def setup_logging(
+    format: str = "{time:HH:mm:ss} | {message}", remove: bool = True, level: int = -1
+):
+    """Enable logging for mymltoolkit
+
+    `format`: format string
+    `remove`: remove the default stderr logger
+    `level`: number of logging levels (-1 for all)
+    """
+
     logger.enable("mymltoolkit")
     if remove:
         logger.remove()
     logger.add(
         sys.stderr,
         format=format,
+        filter=lambda record: not (
+            level != -1
+            and (record["name"] or "").startswith(
+                "mymltoolkit"
+            )  # we are in the library
+            and "_level" in record["extra"]  # _level is present
+            and record["level"].name == "INFO"  # only INFO messages
+            and record["extra"]["_level"] > level
+        ),
     )
 
 
@@ -115,11 +133,12 @@ class multi:
                 outputs.append(arg)  # Do nothing
                 continue
 
-            logger.info(
-                "{indent}Running {task} for argument {i}",
+            _log(
+                "Running {task} for argument {i}",
                 task=task,
-                indent=" " * _level * indent,
                 i=i,
+                indent=indent,
+                _level=_level,
             )
 
             outputs.append(task(arg, indent=indent, _level=_level + 1))
@@ -138,11 +157,12 @@ class multi:
                 outputs.append(arg)  # Do nothing
                 continue
 
-            logger.info(
-                "{indent}Inversely running {task} for argument {i}",
+            _log(
+                "Inversely running {task} for argument {i}",
                 task=task,
-                indent=" " * _level * indent,
                 i=i,
+                indent=indent,
+                _level=_level,
             )
 
             outputs.append(task.inverse(arg, indent=indent, _level=_level + 1))
@@ -162,11 +182,12 @@ class agg:
     ) -> Any:  # _level is the indentation level
         outputs = []
         for i, task in enumerate(self.tasks):
-            logger.info(
-                "{indent}Running {task} {i}",
+            _log(
+                "Running {task} {i}",
                 task=task,
-                indent=" " * _level * indent,
                 i=i,
+                indent=indent,
+                _level=_level,
             )
 
             outputs.append(task(*args, indent=indent, _level=_level + 1))
@@ -186,11 +207,12 @@ class each:
     ) -> Any:  # _level is the indentation level
         outputs = []
         for i, arg in enumerate(args):
-            logger.info(
-                "{indent}Running {task} for argument {i}",
+            _log(
+                "Running {task} for argument {i}",
                 task=self.task,
-                indent=" " * _level * indent,
                 i=i,
+                indent=indent,
+                _level=_level,
             )
 
             outputs.append(self.task(arg, indent=indent, _level=_level + 1))

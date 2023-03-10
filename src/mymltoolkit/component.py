@@ -28,6 +28,15 @@ def _identity(*args: Any, **kwargs: Any) -> Any:
     return args if len(args) > 1 else args[0]
 
 
+def _log(message: str, **kwargs: Any):
+    # Indentation
+    message = "{indent}" + message
+    kwargs["indent"] = " " * kwargs["_level"] * kwargs["indent"]
+    logger.opt(depth=1).patch(
+        lambda record: record["extra"].update(_level=kwargs["_level"])
+    ).info(message, **kwargs)
+
+
 @dataclass
 class Component:
     func: Callable
@@ -155,10 +164,8 @@ class Task:
         self, *args: Any, indent: int = 2, _level: int = 0
     ) -> Any:  # _level is the indentation level
         for component in self.components:
-            logger.info(
-                "{indent}Running {component}",
-                component=component,
-                indent=" " * _level * indent,
+            _log(
+                "Running {component}", component=component, indent=indent, _level=_level
             )
 
             # Ensure args is an iterable suitable for unpacking
@@ -171,10 +178,11 @@ class Task:
 
     def inverse(self, *args: Any, indent: int = 2, _level: int = 0) -> Any:
         for component in self.components.reverse_iter():
-            logger.info(
-                "{indent}Inversely running {component}",
+            _log(
+                "Inversely running {component}",
                 component=component,
-                indent=" " * _level * indent,
+                indent=indent,
+                _level=_level,
             )
 
             # Ensure args is an iterable suitable for unpacking

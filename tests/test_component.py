@@ -1,15 +1,12 @@
+import mymltoolkit as mlt
 from mymltoolkit.component import component, class_component, Component, Task
 from mymltoolkit import multi, agg, each
 
-from loguru import logger
-import sys
 
 import pytest
 
 
-# Do not clutter the log with unnecessary information
-logger.remove()
-logger.add(sys.stdout, format="{message}")
+mlt.setup_logging("{message}")
 
 
 @component
