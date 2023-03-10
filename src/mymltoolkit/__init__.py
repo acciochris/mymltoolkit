@@ -9,7 +9,7 @@ from mymltoolkit.component import (
     class_component,
     component,
     SupportsTask,
-    _log,
+    _info,
 )
 
 from loguru import logger
@@ -44,9 +44,11 @@ __all__ = [
     "barplot",
 ]
 
+_LOGGING_LEVEL: int = -1
+
 
 def setup_logging(
-    format: str = "{time:HH:mm:ss} | {message}", remove: bool = True, level: int = -1
+    format: str = "{time:HH:mm:ss} | {message}", *, remove: bool = True, level: int = -1
 ):
     """Enable logging for mymltoolkit
 
@@ -54,6 +56,7 @@ def setup_logging(
     `remove`: remove the default stderr logger
     `level`: number of logging levels (-1 for all)
     """
+    global _LOGGING_LEVEL
 
     logger.enable("mymltoolkit")
     if remove:
@@ -61,16 +64,8 @@ def setup_logging(
     logger.add(
         sys.stderr,
         format=format,
-        filter=lambda record: not (
-            level != -1
-            and (record["name"] or "").startswith(
-                "mymltoolkit"
-            )  # we are in the library
-            and "_level" in record["extra"]  # _level is present
-            and record["level"].name == "INFO"  # only INFO messages
-            and record["extra"]["_level"] > level
-        ),
     )
+    _LOGGING_LEVEL = level
 
 
 ##############
@@ -133,7 +128,7 @@ class multi:
                 outputs.append(arg)  # Do nothing
                 continue
 
-            _log(
+            _info(
                 "Running {task} for argument {i}",
                 task=task,
                 i=i,
@@ -157,7 +152,7 @@ class multi:
                 outputs.append(arg)  # Do nothing
                 continue
 
-            _log(
+            _info(
                 "Inversely running {task} for argument {i}",
                 task=task,
                 i=i,
@@ -182,7 +177,7 @@ class agg:
     ) -> Any:  # _level is the indentation level
         outputs = []
         for i, task in enumerate(self.tasks):
-            _log(
+            _info(
                 "Running {task} {i}",
                 task=task,
                 i=i,
@@ -207,7 +202,7 @@ class each:
     ) -> Any:  # _level is the indentation level
         outputs = []
         for i, arg in enumerate(args):
-            _log(
+            _info(
                 "Running {task} for argument {i}",
                 task=self.task,
                 i=i,
