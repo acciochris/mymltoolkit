@@ -49,7 +49,11 @@ _LOGGING_LEVEL: int = -1
 
 
 def setup_logging(
-    format: str = "{time:HH:mm:ss} | {message}", *, remove: bool = True, level: int = -1
+    format: str = "{time:HH:mm:ss} | {message}",
+    *,
+    remove: bool = True,
+    level: int = -1,
+    intercept_stdlib: bool = True,
 ):
     """Enable logging for mymltoolkit
 
@@ -67,6 +71,30 @@ def setup_logging(
         format=format,
     )
     _LOGGING_LEVEL = level
+
+    if intercept_stdlib:
+        import logging
+
+        class InterceptHandler(logging.Handler):
+            def emit(self, record):
+                # Get corresponding Loguru level if it exists
+                try:
+                    level = logger.level(record.levelname).name
+                except ValueError:
+                    level = record.levelno
+
+                # Find caller from where originated the logged message
+                frame, depth = logging.currentframe(), 2
+
+                while frame and (frame.f_code.co_filename == logging.__file__):
+                    frame = frame.f_back
+                    depth += 1
+
+                logger.opt(depth=depth, exception=record.exc_info).log(
+                    level, record.getMessage()
+                )
+
+        logging.basicConfig(handlers=[InterceptHandler()], level=0)
 
 
 ##############
@@ -222,29 +250,15 @@ class columns:
         self.task = task.to_task()
         self.columns = columns
 
-    def __call__(
-        self, train: pd.DataFrame | None, test: pd.DataFrame | None, **kwargs: Any
-    ) -> tuple[pd.DataFrame | None, pd.DataFrame | None]:
-        cols: Any = None
+    def __call__(self, df: pd.DataFrame, **kwargs: Any) -> pd.DataFrame:
         if self.columns is None:
-            if train:
-                cols = train.columns
-            elif test:
-                cols = test.columns
+            cols = df.columns
         else:
             cols = self.columns
 
-        train = train.copy() if train else None
-        test = test.copy() if test else None
-        res1, res2 = self.task(
-            train[cols] if train else None,
-            test[cols] if test else None,
+        res = self.task(
+            df[cols],
             **kwargs,
         )
 
-        if train:
-            train[cols] = res1
-        if test:
-            test[cols] = res2
-
-        return train, test
+        return df.join(df.drop(columns=cols), res)
