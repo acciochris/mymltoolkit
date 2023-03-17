@@ -7,6 +7,7 @@ from typing_extensions import ParamSpec, Protocol
 from collections.abc import Iterator, Iterable
 
 from loguru import logger
+from sklearn.base import BaseEstimator
 
 import mymltoolkit as mlt
 
@@ -16,7 +17,7 @@ P = ParamSpec("P")
 _logger = logger.opt(depth=1)
 
 
-class ClassComponent(Protocol[P]):
+class HasInit(Protocol[P]):
     def __init__(self, *args: P.args, **kwargs: P.kwargs):
         ...
 
@@ -76,7 +77,7 @@ def component(func: Callable[P, Any]) -> Callable[P, Component]:
     return inner
 
 
-def class_component(cls: type[ClassComponent[P]]) -> Callable[P, Component]:
+def class_component(cls: type[HasInit[P]]) -> Callable[P, Component]:
     """Generate a component from `cls`"""
 
     if not hasattr(cls, "__call__"):
@@ -96,6 +97,41 @@ def class_component(cls: type[ClassComponent[P]]) -> Callable[P, Component]:
         )
 
     return inner
+
+
+def sklearn_component(estimator: type[HasInit[P]]) -> Callable[P, Component]:
+    if not issubclass(estimator, BaseEstimator):
+        raise TypeError("`estimator` should be a subclass of `BaseEstimator`")
+
+    @class_component  # type: ignore
+    @functools.wraps(estimator)
+    class Inner:
+        def __init__(self, *args: P.args, **kwargs: P.kwargs):
+            self.estimator: Any = estimator(*args, **kwargs)
+            self.is_transformer = hasattr(estimator, "transform")
+
+        def __call__(self, train: Any, test: Any) -> tuple[Any, Any]:
+            if self.is_transformer:
+                return (
+                    self.estimator.fit_transform(train) if train else None,
+                    self.estimator.transform(test) if test else None,
+                )
+            else:
+                return (
+                    self.estimator.fit(train) if train else None,
+                    self.estimator.predict(test) if test else None,
+                )
+
+        def inverse(self, train: Any, test: Any) -> tuple[Any, Any]:
+            if self.is_transformer:
+                return (
+                    self.estimator.inverse_transform(train) if train else None,
+                    self.estimator.inverse_transform(test) if test else None,
+                )
+
+            return train, test
+
+    return Inner  # type: ignore
 
 
 @dataclass

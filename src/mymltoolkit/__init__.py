@@ -13,6 +13,7 @@ from mymltoolkit.component import (
 )
 
 from loguru import logger
+import pandas as pd
 
 # Plotting
 import seaborn.relational as _rel
@@ -194,7 +195,7 @@ class agg:
 class each:
     """Apply a transformation on each of the arguments"""
 
-    def __init__(self, task: SupportsTask) -> None:
+    def __init__(self, task: SupportsTask):
         self.task = task.to_task()
 
     def __call__(
@@ -213,3 +214,37 @@ class each:
             outputs.append(self.task(arg, indent=indent, _level=_level + 1))
 
         return tuple(outputs)
+
+
+@class_component
+class columns:
+    def __init__(self, task: SupportsTask, columns: Any = None):
+        self.task = task.to_task()
+        self.columns = columns
+
+    def __call__(
+        self, train: pd.DataFrame | None, test: pd.DataFrame | None, **kwargs: Any
+    ) -> tuple[pd.DataFrame | None, pd.DataFrame | None]:
+        cols: Any = None
+        if self.columns is None:
+            if train:
+                cols = train.columns
+            elif test:
+                cols = test.columns
+        else:
+            cols = self.columns
+
+        train = train.copy() if train else None
+        test = test.copy() if test else None
+        res1, res2 = self.task(
+            train[cols] if train else None,
+            test[cols] if test else None,
+            **kwargs,
+        )
+
+        if train:
+            train[cols] = res1
+        if test:
+            test[cols] = res2
+
+        return train, test
