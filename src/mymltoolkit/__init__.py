@@ -23,6 +23,7 @@ import seaborn.axisgrid as _grid
 import seaborn.matrix as _mat
 import seaborn.regression as _reg
 
+from sklearn.model_selection import train_test_split as _train_test_split
 
 __version__ = "0.1.0"
 __all__ = [
@@ -43,6 +44,13 @@ __all__ = [
     "violinplot",
     "pointplot",
     "barplot",
+    # Meta
+    "agg",
+    "columns",
+    "each",
+    "multi",
+    # Scikit-learn
+    "train_test_split",
 ]
 
 _LOGGING_LEVEL: int = -1
@@ -127,6 +135,16 @@ clustermap = component(_mat.clustermap)
 lmplot = component(_reg.lmplot)
 regplot = component(_reg.regplot)
 residplot = component(_reg.regplot)
+
+################
+# Scikit-learn #
+################
+
+# Note that most scikit-learn estimators are not included as it is recommended to use
+# sklearn pipelines together with the sklearn_component() function in the `component`
+# module
+
+train_test_split = component(_train_test_split)
 
 ########
 # Meta #
